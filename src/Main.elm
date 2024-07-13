@@ -100,8 +100,12 @@ startGame =
         , errors = []
         , remainingSeconds = 60
         }
-    , Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
+    , generateNewQuestion
     )
+
+
+generateNewQuestion =
+    Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -139,8 +143,16 @@ updateInGame msg model =
                 )
 
         NewQuestion index ->
-            ( InGame { model | question = Array.get index questions |> Maybe.withDefault defaultQuestion, errors = [] }
-            , Cmd.none
+            let
+                newQuestion =
+                    Array.get index questions |> Maybe.withDefault defaultQuestion
+            in
+            ( InGame { model | question = newQuestion, errors = [] }
+            , if newQuestion == model.question then
+                generateNewQuestion
+
+              else
+                Cmd.none
             )
 
         Tick _ ->
