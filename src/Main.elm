@@ -9,6 +9,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
 import Random
+import Time
 
 
 questions =
@@ -44,16 +45,21 @@ main =
 
 
 subscriptions model =
-    Sub.none
+    Time.every 1000 Tick
 
 
 type alias Model =
-    { question : Question, score : Int, errors : List Article }
+    { question : Question
+    , score : Int
+    , errors : List Article
+    , remainingSeconds : Int
+    }
 
 
 type Msg
     = Answer Article
     | NewQuestion Int
+    | Tick Time.Posix
 
 
 type Article
@@ -73,7 +79,13 @@ q article noun picture =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { question = defaultQuestion, score = 0, errors = [] }, Random.generate NewQuestion (Random.int 0 (Array.length questions - 1)) )
+    ( { question = defaultQuestion
+      , score = 0
+      , errors = []
+      , remainingSeconds = 60
+      }
+    , Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -81,7 +93,11 @@ update msg model =
     case msg of
         Answer article ->
             if article == model.question.article then
-                ( { model | score = model.score + 1 }
+                ( if model.errors == [] then
+                    { model | score = model.score + 1 }
+
+                  else
+                    model
                 , Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
                 )
 
@@ -98,6 +114,13 @@ update msg model =
             , Cmd.none
             )
 
+        Tick _ ->
+            if model.remainingSeconds == 0 then
+                ( model, Cmd.none )
+
+            else
+                ( { model | remainingSeconds = model.remainingSeconds - 1 }, Cmd.none )
+
 
 reduceScore score =
     if score - 2 <= 0 then
@@ -108,7 +131,7 @@ reduceScore score =
 
 
 view : Model -> Html Msg
-view { question, score, errors } =
+view { question, score, errors, remainingSeconds } =
     Element.layout [] <|
         column
             [ centerX
@@ -120,16 +143,17 @@ view { question, score, errors } =
             , Border.color (rgb255 0 128 0)
             , Background.color (rgb255 220 255 220)
             ]
-            [ topBar score
+            [ topBar score remainingSeconds
             , bigPicture question.picture
             , buttonRow errors
             , nounText question.noun
             ]
 
 
-topBar score =
-    row [ alignRight ]
-        [ text (String.fromInt score ++ " P")
+topBar score seconds =
+    row [ width fill, spacing 30 ]
+        [ el [] (text <| String.fromInt seconds ++ "s")
+        , el [ alignRight ] (text <| String.fromInt score ++ " P")
         ]
 
 
