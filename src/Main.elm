@@ -1,8 +1,8 @@
 module Main exposing (..)
 
 import Array
-import Browser
-import Element exposing (Element, alignRight, centerX, centerY, column, el, fill, padding, rgb255, row, spacing, text, width)
+import Browser exposing (Document)
+import Element exposing (Element, alignRight, centerX, centerY, column, el, fill, padding, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -41,14 +41,20 @@ defaultQuestion =
 
 
 main =
-    Browser.element { init = init, view = view, update = update, subscriptions = subscriptions }
+    Browser.document { init = init, view = view, update = update, subscriptions = subscriptions }
 
 
 subscriptions model =
     Time.every 1000 Tick
 
 
-type alias Model =
+type Model
+    = InGame InGameModel
+    | Welcome
+    | GameOver Score
+
+
+type alias InGameModel =
     { question : Question
     , score : Int
     , errors : List Article
@@ -56,10 +62,15 @@ type alias Model =
     }
 
 
+type alias Score =
+    Int
+
+
 type Msg
     = Answer Article
     | NewQuestion Int
     | Tick Time.Posix
+    | StartGame
 
 
 type Article
@@ -79,47 +90,69 @@ q article noun picture =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { question = defaultQuestion
-      , score = 0
-      , errors = []
-      , remainingSeconds = 60
-      }
+    ( Welcome, Cmd.none )
+
+
+startGame =
+    ( InGame
+        { question = defaultQuestion
+        , score = 0
+        , errors = []
+        , remainingSeconds = 60
+        }
     , Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    case model of
+        InGame m ->
+            updateInGame msg m
+
+        Welcome ->
+            updateWelcome msg
+
+        GameOver score ->
+            updateGameOver msg score
+
+
+updateInGame : Msg -> InGameModel -> ( Model, Cmd Msg )
+updateInGame msg model =
     case msg of
         Answer article ->
             if article == model.question.article then
                 ( if model.errors == [] then
-                    { model | score = model.score + 1 }
+                    InGame { model | score = model.score + 1 }
 
                   else
-                    model
+                    InGame model
                 , Random.generate NewQuestion (Random.int 0 (Array.length questions - 1))
                 )
 
             else if List.member article model.errors then
-                ( model, Cmd.none )
+                ( InGame model, Cmd.none )
 
             else
-                ( { model | errors = article :: model.errors, score = reduceScore model.score }
+                ( InGame { model | errors = article :: model.errors, score = reduceScore model.score }
                 , Cmd.none
                 )
 
         NewQuestion index ->
-            ( { model | question = Array.get index questions |> Maybe.withDefault defaultQuestion, errors = [] }
+            ( InGame { model | question = Array.get index questions |> Maybe.withDefault defaultQuestion, errors = [] }
             , Cmd.none
             )
 
         Tick _ ->
             if model.remainingSeconds == 0 then
-                ( model, Cmd.none )
+                ( GameOver model.score, Cmd.none )
 
             else
-                ( { model | remainingSeconds = model.remainingSeconds - 1 }, Cmd.none )
+                ( InGame { model | remainingSeconds = model.remainingSeconds - 1 }, Cmd.none )
+
+        StartGame ->
+            -- shouldn't be happening
+            startGame
 
 
 reduceScore score =
@@ -130,24 +163,124 @@ reduceScore score =
         score - 2
 
 
-view : Model -> Html Msg
-view { question, score, errors, remainingSeconds } =
+updateWelcome : Msg -> ( Model, Cmd Msg )
+updateWelcome msg =
+    case msg of
+        StartGame ->
+            startGame
+
+        _ ->
+            ( Welcome, Cmd.none )
+
+
+updateGameOver : Msg -> Score -> ( Model, Cmd Msg )
+updateGameOver msg score =
+    case msg of
+        StartGame ->
+            startGame
+
+        _ ->
+            ( GameOver score, Cmd.none )
+
+
+view : Model -> Document Msg
+view model =
+    { title = "der, die, das"
+    , body = [ viewBody model ]
+    }
+
+
+viewBody : Model -> Html Msg
+viewBody model =
     Element.layout [] <|
-        column
-            [ centerX
-            , centerY
-            , spacing 30
-            , padding 30
-            , Border.rounded 4
-            , Border.width 1
-            , Border.color (rgb255 0 128 0)
-            , Background.color (rgb255 220 255 220)
-            ]
-            [ topBar score remainingSeconds
-            , bigPicture question.picture
-            , buttonRow errors
-            , nounText question.noun
-            ]
+        case model of
+            Welcome ->
+                viewWelcome
+
+            InGame inGameModel ->
+                viewInGame inGameModel
+
+            GameOver score ->
+                viewGameOver score
+
+
+viewWelcome =
+    column
+        [ centerX
+        , centerY
+        , spacing 30
+        , padding 30
+        , Border.rounded 4
+        , Border.width 1
+        , Border.color darkGreen
+        , Background.color lightGreen
+        , width (px 400)
+        ]
+        [ el [ centerX, Font.size 50 ] (text "Willkommen!")
+        , text "Kannst du schon der, die, das?"
+        , startButton "Start"
+        ]
+
+
+viewGameOver score =
+    column
+        [ centerX
+        , centerY
+        , spacing 30
+        , padding 30
+        , Border.rounded 4
+        , Border.width 1
+        , Border.color darkGreen
+        , Background.color lightGreen
+        , width (px 400)
+        ]
+        [ el [ centerX, Font.size 50 ] (text <| String.fromInt score ++ " Punkte")
+        , text "Schaffst du noch mehr?"
+        , startButton "Nochmal"
+        ]
+
+
+startButton label =
+    Input.button
+        [ Background.color darkGreen
+        , Font.color <| rgb255 255 255 255
+        , Border.rounded 4
+        , padding 10
+        , centerX
+        ]
+        { onPress = Just StartGame, label = text label }
+
+
+darkRed =
+    rgb255 128 0 0
+
+
+darkGreen =
+    rgb255 0 128 0
+
+
+lightGreen =
+    rgb255 220 255 220
+
+
+viewInGame : InGameModel -> Element Msg
+viewInGame { question, score, errors, remainingSeconds } =
+    column
+        [ centerX
+        , centerY
+        , spacing 30
+        , padding 30
+        , Border.rounded 4
+        , Border.width 1
+        , Border.color darkGreen
+        , Background.color lightGreen
+        , width (px 400)
+        ]
+        [ topBar score remainingSeconds
+        , bigPicture question.picture
+        , buttonRow errors
+        , nounText question.noun
+        ]
 
 
 topBar score seconds =
@@ -177,10 +310,10 @@ answerButton label article errors =
     Input.button
         [ Background.color <|
             if errors |> List.member article then
-                rgb255 128 0 0
+                darkRed
 
             else
-                rgb255 0 128 0
+                darkGreen
         , Font.color <| rgb255 255 255 255
         , Border.rounded 4
         , padding 10
