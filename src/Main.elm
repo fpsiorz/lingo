@@ -204,18 +204,22 @@ viewBody model =
                 viewGameOver score
 
 
+viewAttributes =
+    [ centerX
+    , centerY
+    , spacing 30
+    , padding 30
+    , Border.rounded 4
+    , Border.width 1
+    , Border.color darkGreen
+    , Background.color lightGreen
+    , width (px 400)
+    ]
+
+
 viewWelcome =
     column
-        [ centerX
-        , centerY
-        , spacing 30
-        , padding 30
-        , Border.rounded 4
-        , Border.width 1
-        , Border.color darkGreen
-        , Background.color lightGreen
-        , width (px 400)
-        ]
+        viewAttributes
         [ el [ centerX, Font.size 50 ] (text "Willkommen!")
         , text "Kannst du schon der, die, das?"
         , startButton "Start"
@@ -224,16 +228,7 @@ viewWelcome =
 
 viewGameOver score =
     column
-        [ centerX
-        , centerY
-        , spacing 30
-        , padding 30
-        , Border.rounded 4
-        , Border.width 1
-        , Border.color darkGreen
-        , Background.color lightGreen
-        , width (px 400)
-        ]
+        viewAttributes
         [ el [ centerX, Font.size 50 ] (text <| String.fromInt score ++ " Punkte")
         , text "Schaffst du noch mehr?"
         , startButton "Nochmal"
@@ -266,16 +261,7 @@ lightGreen =
 viewInGame : InGameModel -> Element Msg
 viewInGame { question, score, errors, remainingSeconds } =
     column
-        [ centerX
-        , centerY
-        , spacing 30
-        , padding 30
-        , Border.rounded 4
-        , Border.width 1
-        , Border.color darkGreen
-        , Background.color lightGreen
-        , width (px 400)
-        ]
+        viewAttributes
         [ topBar score remainingSeconds
         , bigPicture question.picture
         , buttonRow errors
