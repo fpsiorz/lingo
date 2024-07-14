@@ -420,12 +420,38 @@ viewWelcome =
 
 
 viewGameOver score =
+    let
+        ( pic, message ) =
+            gameOverMessage score
+    in
     column
         viewAttributes
         [ el [ centerX, Font.size 50 ] (text <| String.fromInt score ++ " Punkte")
+        , bigPicture pic
+        , text message
         , text "Schaffst du noch mehr?"
         , startButton "Nochmal"
         ]
+
+
+gameOverMessage score =
+    if score < 10 then
+        ( "😐", "Nächstes Mal wird's bestimmt besser!" )
+
+    else if score < 20 then
+        ( "🙂", "Gut gemacht!" )
+
+    else if score < 30 then
+        ( "😎", "Mega!" )
+
+    else if score < 40 then
+        ( "😍", "Superduper!" )
+
+    else if score < 50 then
+        ( "🥳", "Juhu! Das war ja fantastisch!" )
+
+    else
+        ( "🦖", "Uuuuuaaaa! Ich bin ein T. Rex!" )
 
 
 startButton label =
